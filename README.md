@@ -1,0 +1,223 @@
+# Mixed Precision Algorithm Development and Optimization
+
+This repo contains a starting template for developing and optimizing mixed-precision algorithms for IoT, ML/DL/RL, SDR, and DSP applications that can be deployed on custom hardware accelerators while at the same time having an efficient collaboration with the host CPU.
+
+Once you use this template, you will need to adjust the status badges below to point to your repo.
+
+| **System** | **Status** | **More information** |
+|------------|------------|----------------------|
+| [FOSSA Status](https://app.fossa.com/projects/git%2Bgithub.com%2Fstillwater-sc%2Funiversal) | [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fstillwater-sc%2Funiversal.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fstillwater-sc%2Funiversal?ref=badge_shield) | Open-source license dependency scanner (update URL after forking)|
+| [GitHub Actions](https://github.com/stillwater-sc/mpadao-template/actions) | [![Build Status](https://github.com/stillwater-sc/mpadao-template/actions/workflows/cmake.yml/badge.svg?branch=main)](https://github.com/stillwater-sc/mpadao-template) | Latest Linux/MacOS/Windows builds and regression tests |
+
+
+# How to build
+
+This repo uses git submodules. The first step after pulling the repository is to configure the submodules:
+
+```text
+> git submodule init && git submodule update
+```
+
+After that, the repo is ready to be build:
+
+```text
+> mkdir build
+> cd build
+> cmake ..
+> make
+```
+
+This will build the libraries, the CLI command projects, and the tests in `test/mpadao_tests`.
+
+## Boost dependency (optional)
+
+The solver examples use `boost::multiprecision::cpp_bin_float_quad` as a reference type for comparing numerical accuracy against Universal number types. Boost is optional — without it, the solvers are simply skipped.
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+sudo apt install libboost-dev
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install boost
+```
+
+**Windows:**
+
+Download a Boost release from [boost.org](https://www.boost.org/users/download/) and extract it. Since we only use Boost's header-only multiprecision library, no build step is required. Point CMake to the source tree:
+
+```bash
+cmake -DBOOST_ROOT=C:/local/boost_1_86_0 ..
+```
+
+CMake will automatically detect installed Boost on Linux and macOS. If Boost is not found, everything except the solvers directory will build normally.
+
+## Development container
+
+When using VSCode, the repository contains a devcontainer spec in the directory $MPADAO_ROOT/.devcontainer.
+
+![VS code environment](img/vscode-devcontainer.png)
+
+The development container ships both GCC 14 and Clang 18 on Ubuntu 24.04 LTS:
+
+```bash
+# Build the container locally
+docker build -t stillwater/mpadao:latest docker/
+
+# Run interactively with the repo mounted
+docker run --rm -it -v $(pwd):/home/dev/mpadao stillwater/mpadao:latest
+```
+
+GCC 14 is the default compiler. To build with Clang instead:
+
+```bash
+CC=clang-18 CXX=clang++-18 cmake ..
+```
+
+You can also build natively. The .gitignore of this repo filters out the following directories:
+```text
+build/
+build_msvc/
+build_gcc/
+build_clang/
+```
+You can use these build directories to organize your native and specific build containers so that they can run concurrently. For example, you can use the `build/` directory to hold native builds, and `build_gcc/` directory to hold the default build container builds.
+
+# Install command line tools, libraries, and include files
+
+To install the command line tools for ease of use, issue the `install` target:
+
+```bash
+> make install
+```
+
+This command will populate the $MPADAO_ROOT/bin, $MPADAO_ROOT/lib, and $MPADAO_ROOT/include directories, where $MPADAO_ROOT represents the directory path of the mpadao-template repository clone.
+
+If you are on a Linux or MacOS system, you can add the bin directory to your path to pick up the command line tools:
+
+```bash
+> export PATH=$PATH:$MPADAO_ROOT/bin
+```
+
+For Windows, use the environment variable editor to do the same.
+
+
+## Streamlining the Build
+
+To just build the projects in mpadao-template and ignore build targets in Universal and MTL5, use:
+
+```zsh
+> cmake -DBUILD_DEMONSTRATION=OFF -DENABLE_TESTS=OFF ..
+```
+
+To enable the Abseil logging example, add:
+
+```zsh
+> cmake -DMPADAO_ENABLE_ABSEIL=ON ..
+```
+
+## Updating the submodules
+
+The parent repo pins each submodule to a **specific commit SHA**. "Updating" means deliberately
+choosing a new SHA (usually a release tag) and re-pinning the parent to it. Do **not** use
+`git submodule update --remote --merge` — that asks Git to merge the upstream branch into the
+submodule's detached `HEAD`, and on long-pinned dependencies (e.g. abseil) it produces hundreds
+of merge conflicts.
+
+The safe workflow is **query → act → verify**, done one submodule at a time.
+
+### 1. Query: what is checked out, what is pinned, what is available upstream?
+
+```bash
+# Parent repo: are working trees clean, and do submodule SHAs match the pin?
+> git status
+> git submodule status
+#   <SHA> <path> (<describe>)
+#   A leading '+' means the submodule's HEAD differs from the pinned SHA.
+#   A leading '-' means the submodule isn't initialized.
+#   No prefix means clean and matching the pin.
+
+# Inside the submodule: what tags are available upstream?
+> cd ext/google/abseil
+> git fetch --tags
+> git tag --sort=-v:refname | head -10
+```
+
+Decide on a target — prefer a release tag (e.g. `20260107.1`) over a moving branch like `main`.
+Tags ending in `.rcN` are release candidates; skip them for production pins.
+
+### 2. Act: check out the target tag and stage the new SHA in the parent
+
+```bash
+# Still inside the submodule
+> git checkout 20260107.1     # detached HEAD at the chosen tag
+> cd ../../..                 # back to the parent repo
+
+# Stage and commit the new submodule SHA in the parent
+> git add ext/google/abseil
+> git commit -m "Bump abseil submodule to LTS 20260107.1"
+```
+
+### 3. Verify: confirm the new state, then build and test
+
+```bash
+> git submodule status
+# Expect: no '+' prefix, the SHA matches the tag you chose, and the describe
+# string shows the tag name.
+#
+# Gotcha: `git submodule status` calls plain `git describe` under the hood,
+# which IGNORES lightweight (non-annotated) tags. googletest tags releases
+# as lightweight refs, so even after pinning to v1.17.0 you may see
+# `release-1.8.0-3544-g<sha>` — read this as "3544 commits past the nearest
+# annotated tag, at commit <sha>". The SHA is what matters. For an honest
+# answer, run:
+#     git -C ext/google/googletest describe --tags
+#     # -> v1.17.0
+
+# Re-check the build with the new submodule
+> mkdir build-verify && cd build-verify
+> cmake -DMPADAO_ENABLE_ABSEIL=ON ..    # enable affected features
+> make -j$(nproc) && ctest
+```
+
+If the build or tests fail, the upstream change broke something — either pin to an older tag,
+or fix the call sites in this repo as a separate commit.
+
+### Recovering from a botched update
+
+If you have already run `git submodule update --remote --merge` and are sitting on a conflicted
+merge inside a submodule:
+
+```bash
+> cd ext/google/<submodule>
+> git merge --abort
+> cd -
+> git submodule update --init --recursive   # resets every submodule to the pinned SHA
+```
+
+`git submodule update` (without `--remote`) is the "sync to what the parent repo pins" command
+and is always safe — it only prints lines for submodules that actually change.
+
+
+# Project structure
+
+The following figure shows the project structure of this repository:
+
+![Project Structure](img/project-structure.png)
+
+# Customizing This Template
+
+After forking this template, update the following to match your project:
+
+- [ ] **Project name**: Update `project()` in root `CMakeLists.txt`
+- [ ] **CMake variable prefix**: Rename `MPADAO_*` variables if desired
+- [ ] **Namespace**: Replace `mpadao::` in `src/lib/version/` with your project namespace
+- [ ] **Version**: Set `MPADAO_MAJOR`, `MPADAO_MINOR`, `MPADAO_PATCH` in `CMakeLists.txt`
+- [ ] **GitHub URLs**: Update badge links and `HOMEPAGE_URL` in `CMakeLists.txt`
+- [ ] **FOSSA badge**: Point to your own FOSSA project
+- [ ] **Docker images**: Update `stillwater/mpadao:*` references in `.devcontainer/` and `docker/`
+- [ ] **CI workflow**: Update `.github/workflows/cmake.yml` triggers and branch names
+- [ ] **README**: Replace this checklist with your project description
