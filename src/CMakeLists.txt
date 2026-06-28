@@ -20,6 +20,9 @@ add_subdirectory(apps/mixed-precision/quadratic)
 # C++20 std::numbers vs Universal high-precision constants
 add_subdirectory(apps/mixed-precision/constants)
 
+# balanced tau (phi^2) number system: a new Universal number type
+add_subdirectory(apps/mixed-precision/tau)
+
 ################################## High-precision examples ################################################
 # starter for projects that use the Universal Number System library adaptive precision facilities
 add_subdirectory(apps/high-precision/digits_of_pi)
