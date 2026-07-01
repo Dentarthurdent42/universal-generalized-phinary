@@ -102,6 +102,11 @@ set(MPADAO_INSTALL_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 set(MTLEXT_INCLUDE_HEADERS_DIR ${PROJECT_SOURCE_DIR}/src/mtlext)
 set(VERSION_INCLUDE_HEADERS_DIR ${PROJECT_SOURCE_DIR}/src/lib/version)
 
+# project-local number systems that extend the Universal include tree
+# (the balanced tau (phi^2) number system lives here). The include root mirrors
+# Universal's layout so headers are reached as <universal/number/tau/tau.hpp>.
+set(MPADAO_NUMBER_SYSTEMS_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/src/number-systems/include/sw)
+
 set(UNIVERSAL_ENABLE_TEST OFF CACHE BOOL "Disable Universal regression tests" FORCE)
 set(MTL5_BUILD_TESTS OFF CACHE BOOL "Disable MTL5 tests when building as submodule" FORCE)
 set(MTL5_BUILD_EXAMPLES OFF CACHE BOOL "Disable MTL5 examples when building as submodule" FORCE)
@@ -111,6 +116,7 @@ option(MPADAO_ENABLE_ABSEIL "Enable Abseil logging support" OFF)
 include_directories(${MPADAO_INSTALL_INCLUDE_DIR})
 include_directories(${MTLEXT_INCLUDE_HEADERS_DIR})
 include_directories(${VERSION_INCLUDE_HEADERS_DIR})
+include_directories(${MPADAO_NUMBER_SYSTEMS_INCLUDE_DIR})
 
 # Generate version configuration header from CMake variables
 configure_file(

@@ -5,10 +5,11 @@ project(${app_name} C CXX)
 add_subdirectory(${MPADAO_ROOT_DIR}/ext/google/googletest build_gtest)
 
 include_directories(${VERSION_INCLUDE_HEADERS_DIR})
+include_directories(${MPADAO_NUMBER_SYSTEMS_INCLUDE_DIR})
 include_directories(${MPADAO_ROOT_DIR}/ext/stillwater-sc/universal/include/sw)
 include_directories(${MPADAO_ROOT_DIR}/ext/google/googletest/googletest/include)
 
-set(SOURCE_FILES main.cpp src/mpadao_tests.cpp)
+set(SOURCE_FILES main.cpp src/mpadao_tests.cpp src/tau_tests.cpp)
 
 add_executable(${app_name} ${SOURCE_FILES})
 set(folder "Google Tests")
